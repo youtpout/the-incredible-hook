@@ -9,15 +9,11 @@ import {PoolKey} from "v4-core/src/types/PoolKey.sol";
 import {PoolId, PoolIdLibrary} from "v4-core/src/types/PoolId.sol";
 import {BalanceDelta} from "v4-core/src/types/BalanceDelta.sol";
 
-contract LowFeeHook is BaseHook {
+contract SponsoredHook is BaseHook {
     using PoolIdLibrary for PoolKey;
-
-    mapping(uint256 => IPoolManager.SwapParams) public swapRegistered;
-    mapping(uint256 => bool) public swapExecuted;
-    uint256 lastAdded;
-    uint256 lastExecuted;
-    uint256 maxIndex;
-
+    // base fee 1.1 %
+    uint24 constant baseFee = 11000;
+    mapping(address => bool) authorizedRouter;
 
     constructor(IPoolManager _poolManager) BaseHook(_poolManager) {}
 
@@ -42,25 +38,35 @@ contract LowFeeHook is BaseHook {
             });
     }
 
-    function AddSwap(
-        IPoolManager.SwapParams calldata swapParam
-    ) external payable {
-        ++lastAdded;
-        swapRegistered[lastAdded] = swapParam;
+    // todo secure method
+    function setWhitelist(address router) external {
+        authorizedRouter[router] = true;
     }
 
-    // -----------------------------------------------
-    // NOTE: see IHooks.sol for function documentation
-    // -----------------------------------------------
-
+    // adjust fee on beforeswap
     function beforeSwap(
-        address,
+        address caller,
         PoolKey calldata key,
         IPoolManager.SwapParams calldata,
         bytes calldata hookdata
     ) external override returns (bytes4) {
-        if(hookdata.length > 0){
-            uint256 nbSwap = abi.decode(hookdata,(uint256));
+        if (hookdata.length > 0 && authorizedRouter[caller]) {
+            // get number of sponsorised swap to apply fee reduction
+            uint24 nbSwap = abi.decode(hookdata, (uint24));
+            // first swap get bonus of 0.1% and after 0.05% by swap
+            if (nbSwap > 0) {
+                uint24 fee = baseFee - 1000 - (nbSwap * 500);
+                if (fee < 5000) {
+                    // min fees of 0.5 %
+                    fee = 5000;
+                }
+                poolManager.updateDynamicSwapFee(key, fee);
+            } else {
+                poolManager.updateDynamicSwapFee(key, baseFee);
+            }
+        } else {
+            // apply base fee if they are 0 sponsored swap
+            poolManager.updateDynamicSwapFee(key, baseFee);
         }
         return BaseHook.beforeSwap.selector;
     }
