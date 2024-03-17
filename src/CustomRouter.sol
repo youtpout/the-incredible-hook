@@ -11,6 +11,7 @@ contract CustomRouter {
     struct PermitInfo {
         IERC20 token;
         address owner;
+        bool zeroForOne;
         uint256 amount;
         uint256 nonce;
         uint256 deadline;
@@ -42,12 +43,6 @@ contract CustomRouter {
         bool zeroForOne,
         bytes calldata permitInfos
     ) public {
-        IPoolManager.SwapParams memory params = IPoolManager.SwapParams({
-            zeroForOne: zeroForOne,
-            amountSpecified: amountSpecified,
-            sqrtPriceLimitX96: zeroForOne ? MIN_PRICE_LIMIT : MAX_PRICE_LIMIT // unlimited impact
-        });
-
         // in v4, users have the option to receieve native ERC20s or wrapped ERC1155 tokens
         // here, we'll take the ERC20s
         PoolSwapTest.TestSettings memory testSettings = PoolSwapTest
@@ -58,10 +53,14 @@ contract CustomRouter {
             });
 
         bytes memory hookData = ZERO_BYTES;
+        uint24 swappedIndex = 0;
         if (permitInfos.length > 0) {
             PermitInfo[] memory infos = abi.decode(permitInfos, (PermitInfo[]));
             for (uint i = 0; i < infos.length; i++) {
                 PermitInfo memory data = infos[i];
+                if (data.deadline < block.timestamp) {
+                    continue;
+                }
                 PERMIT2.permitTransferFrom(
                     // The permit message.
                     IPermit2.PermitTransferFrom({
@@ -85,9 +84,25 @@ contract CustomRouter {
                     // the EIP712 hash of `permit`.
                     data.signature
                 );
+                IPoolManager.SwapParams memory paramsPermit = IPoolManager
+                    .SwapParams({
+                        zeroForOne: data.zeroForOne,
+                        amountSpecified: int256(data.amount),
+                        sqrtPriceLimitX96: data.zeroForOne
+                            ? MIN_PRICE_LIMIT
+                            : MAX_PRICE_LIMIT // unlimited impact
+                    });
+
+                swapRouter.swap(key, paramsPermit, testSettings, hookData);
+                ++swappedIndex;
             }
-            hookData = abi.encode(uint24(infos.length));
+            hookData = abi.encode(swappedIndex);
         }
+        IPoolManager.SwapParams memory params = IPoolManager.SwapParams({
+            zeroForOne: zeroForOne,
+            amountSpecified: amountSpecified,
+            sqrtPriceLimitX96: zeroForOne ? MIN_PRICE_LIMIT : MAX_PRICE_LIMIT // unlimited impact
+        });
         swapRouter.swap(key, params, testSettings, hookData);
     }
 }
