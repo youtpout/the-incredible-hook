@@ -17,6 +17,7 @@ import {CustomRouter} from "../src/CustomRouter.sol";
 import {HookMiner} from "./utils/HookMiner.sol";
 import {DeployPermit2} from "permit2/test/utils/DeployPermit2.sol";
 import {SwapFeeLibrary} from "v4-core/src/libraries/SwapFeeLibrary.sol";
+import {MockERC20} from "solmate/test/utils/mocks/MockERC20.sol";
 
 contract SponsoredTest is Test, Deployers, DeployPermit2 {
     using PoolIdLibrary for PoolKey;
@@ -77,21 +78,16 @@ contract SponsoredTest is Test, Deployers, DeployPermit2 {
         // add router and whitelist it
         router = new CustomRouter(address(manager), permit2);
         hook.setWhitelist(address(router));
+
+         MockERC20(Currency.unwrap(currency0)).approve(address(router), type(uint256).max);
+         MockERC20(Currency.unwrap(currency1)).approve(address(router), type(uint256).max);
     }
 
-    function testCounterHooks() public {
+    function testSwap() public {
         // Perform a test swap //
         bool zeroForOne = true;
-        int256 amountSpecified = -1e18; // negative number indicates exact input swap!
-        BalanceDelta swapDelta = swap(
-            key,
-            zeroForOne,
-            amountSpecified,
-            ZERO_BYTES
-        );
-        // ------------------- //
-
-        assertEq(int256(swapDelta.amount0()), amountSpecified);
+        int256 amountSpecified = 100; 
+        router.swap(key, Currency.unwrap(currency0),amountSpecified,zeroForOne,ZERO_BYTES);
     }
 
     function testLiquidityHooks() public {

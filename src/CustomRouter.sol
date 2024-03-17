@@ -5,7 +5,8 @@ import {IPoolManager} from "v4-core/src/interfaces/IPoolManager.sol";
 import {PoolKey} from "v4-core/src/types/PoolKey.sol";
 import {PoolSwapTest} from "v4-core/src/test/PoolSwapTest.sol";
 import {TickMath} from "v4-core/src/libraries/TickMath.sol";
-import {IPermit2,ISignatureTransfer} from "permit2/src/interfaces/IPermit2.sol";
+import {IPermit2, ISignatureTransfer} from "permit2/src/interfaces/IPermit2.sol";
+import {TestERC20} from "v4-core/src/test/TestERC20.sol";
 
 contract CustomRouter {
     struct PermitInfo {
@@ -29,7 +30,7 @@ contract CustomRouter {
 
     constructor(address manager, address permit2) {
         swapRouter = new PoolSwapTest(IPoolManager(address(manager)));
-        PERMIT2 =  IPermit2(permit2);
+        PERMIT2 = IPermit2(permit2);
     }
 
     /// @notice Swap tokens
@@ -39,6 +40,7 @@ contract CustomRouter {
     /// @param permitInfos permit2 signature sponsored swap
     function swap(
         PoolKey memory key,
+        address token,
         int256 amountSpecified,
         bool zeroForOne,
         bytes calldata permitInfos
@@ -103,6 +105,13 @@ contract CustomRouter {
             amountSpecified: amountSpecified,
             sqrtPriceLimitX96: zeroForOne ? MIN_PRICE_LIMIT : MAX_PRICE_LIMIT // unlimited impact
         });
+
+        TestERC20(token).transferFrom(
+            msg.sender,
+            address(this),
+            uint256(amountSpecified)
+        );
+        TestERC20(token).approve(address(swapRouter), uint256(amountSpecified));
         swapRouter.swap(key, params, testSettings, hookData);
     }
 }
