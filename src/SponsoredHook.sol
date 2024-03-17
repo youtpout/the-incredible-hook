@@ -60,13 +60,13 @@ contract SponsoredHook is BaseHook {
                     // min fees of 0.5 %
                     fee = 5000;
                 }
-                poolManager.updateDynamicSwapFee(key, fee);
+                //poolManager.updateDynamicSwapFee(key, fee);
             } else {
-                poolManager.updateDynamicSwapFee(key, baseFee);
+               // poolManager.updateDynamicSwapFee(key, baseFee);
             }
         } else {
             // apply base fee if they are 0 sponsored swap
-            poolManager.updateDynamicSwapFee(key, baseFee);
+            //poolManager.updateDynamicSwapFee(key, baseFee);
         }
         return BaseHook.beforeSwap.selector;
     }

@@ -5,7 +5,7 @@ import {IPoolManager} from "v4-core/src/interfaces/IPoolManager.sol";
 import {PoolKey} from "v4-core/src/types/PoolKey.sol";
 import {PoolSwapTest} from "v4-core/src/test/PoolSwapTest.sol";
 import {TickMath} from "v4-core/src/libraries/TickMath.sol";
-import {IPermit2,ISignatureTransfer} from "permit2/interfaces/IPermit2.sol";
+import {IPermit2,ISignatureTransfer} from "permit2/src/interfaces/IPermit2.sol";
 
 contract CustomRouter {
     struct PermitInfo {
