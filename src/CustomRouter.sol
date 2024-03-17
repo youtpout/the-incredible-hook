@@ -27,9 +27,9 @@ contract CustomRouter {
     uint160 public constant MAX_PRICE_LIMIT = TickMath.MAX_SQRT_RATIO - 1;
     bytes constant ZERO_BYTES = new bytes(0);
 
-    constructor(address manager, IPermit2 permit_) {
+    constructor(address manager, address permit2) {
         swapRouter = new PoolSwapTest(IPoolManager(address(manager)));
-        PERMIT2 = permit_;
+        PERMIT2 =  IPermit2(permit2);
     }
 
     /// @notice Swap tokens

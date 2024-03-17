@@ -13,16 +13,17 @@ import {CurrencyLibrary, Currency} from "v4-core/src/types/Currency.sol";
 import {PoolSwapTest} from "v4-core/src/test/PoolSwapTest.sol";
 import {Deployers} from "v4-core/test/utils/Deployers.sol";
 import {SponsoredHook} from "../src/SponsoredHook.sol";
+import {CustomRouter} from "../src/CustomRouter.sol";
 import {HookMiner} from "./utils/HookMiner.sol";
 import {DeployPermit2} from "permit2/test/utils/DeployPermit2.sol";
 import {SwapFeeLibrary} from "v4-core/src/libraries/SwapFeeLibrary.sol";
-
 
 contract SponsoredTest is Test, Deployers, DeployPermit2 {
     using PoolIdLibrary for PoolKey;
     using CurrencyLibrary for Currency;
 
     SponsoredHook hook;
+    CustomRouter router;
     PoolId poolId;
     address permit2;
 
@@ -34,13 +35,18 @@ contract SponsoredTest is Test, Deployers, DeployPermit2 {
         permit2 = deployPermit2();
 
         // Deploy the hook to an address with the correct flags
-        uint160 flags = uint160(
-            Hooks.BEFORE_SWAP_FLAG
+        uint160 flags = uint160(Hooks.BEFORE_SWAP_FLAG);
+        (address hookAddress, bytes32 salt) = HookMiner.find(
+            address(this),
+            flags,
+            type(SponsoredHook).creationCode,
+            abi.encode(address(manager))
         );
-        (address hookAddress, bytes32 salt) =
-            HookMiner.find(address(this), flags, type(SponsoredHook).creationCode, abi.encode(address(manager)));
         hook = new SponsoredHook{salt: salt}(IPoolManager(address(manager)));
-        require(address(hook) == hookAddress, "SponsoredTest: hook address mismatch");
+        require(
+            address(hook) == hookAddress,
+            "SponsoredTest: hook address mismatch"
+        );
 
         // Create the pool
         key = PoolKey(currency0, currency1, 11000, 60, IHooks(address(hook)));
@@ -48,31 +54,53 @@ contract SponsoredTest is Test, Deployers, DeployPermit2 {
         manager.initialize(key, SQRT_RATIO_1_1, ZERO_BYTES);
 
         // Provide liquidity to the pool
-        modifyLiquidityRouter.modifyLiquidity(key, IPoolManager.ModifyLiquidityParams(-60, 60, 10 ether), ZERO_BYTES);
-        modifyLiquidityRouter.modifyLiquidity(key, IPoolManager.ModifyLiquidityParams(-120, 120, 10 ether), ZERO_BYTES);
         modifyLiquidityRouter.modifyLiquidity(
             key,
-            IPoolManager.ModifyLiquidityParams(TickMath.minUsableTick(60), TickMath.maxUsableTick(60), 10 ether),
+            IPoolManager.ModifyLiquidityParams(-60, 60, 10 ether),
             ZERO_BYTES
         );
+        modifyLiquidityRouter.modifyLiquidity(
+            key,
+            IPoolManager.ModifyLiquidityParams(-120, 120, 10 ether),
+            ZERO_BYTES
+        );
+        modifyLiquidityRouter.modifyLiquidity(
+            key,
+            IPoolManager.ModifyLiquidityParams(
+                TickMath.minUsableTick(60),
+                TickMath.maxUsableTick(60),
+                10 ether
+            ),
+            ZERO_BYTES
+        );
+
+        // add router and whitelist it
+        router = new CustomRouter(address(manager), permit2);
+        hook.setWhitelist(address(router));
     }
 
     function testCounterHooks() public {
         // Perform a test swap //
         bool zeroForOne = true;
         int256 amountSpecified = -1e18; // negative number indicates exact input swap!
-        BalanceDelta swapDelta = swap(key, zeroForOne, amountSpecified, ZERO_BYTES);
+        BalanceDelta swapDelta = swap(
+            key,
+            zeroForOne,
+            amountSpecified,
+            ZERO_BYTES
+        );
         // ------------------- //
 
         assertEq(int256(swapDelta.amount0()), amountSpecified);
-
     }
-    
+
     function testLiquidityHooks() public {
-       
         // remove liquidity
         int256 liquidityDelta = -1e18;
-        modifyLiquidityRouter.modifyLiquidity(key, IPoolManager.ModifyLiquidityParams(-60, 60, liquidityDelta), ZERO_BYTES);
-
+        modifyLiquidityRouter.modifyLiquidity(
+            key,
+            IPoolManager.ModifyLiquidityParams(-60, 60, liquidityDelta),
+            ZERO_BYTES
+        );
     }
 }
