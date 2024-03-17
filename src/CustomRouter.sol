@@ -5,11 +5,11 @@ import {IPoolManager} from "v4-core/src/interfaces/IPoolManager.sol";
 import {PoolKey} from "v4-core/src/types/PoolKey.sol";
 import {PoolSwapTest} from "v4-core/src/test/PoolSwapTest.sol";
 import {TickMath} from "v4-core/src/libraries/TickMath.sol";
-import {IPermit2, IERC20} from "./interfaces/IPermit2.sol";
+import {IPermit2,ISignatureTransfer} from "permit2/interfaces/IPermit2.sol";
 
 contract CustomRouter {
     struct PermitInfo {
-        IERC20 token;
+        address token;
         address owner;
         bool zeroForOne;
         uint256 amount;
@@ -63,8 +63,8 @@ contract CustomRouter {
                 }
                 PERMIT2.permitTransferFrom(
                     // The permit message.
-                    IPermit2.PermitTransferFrom({
-                        permitted: IPermit2.TokenPermissions({
+                    ISignatureTransfer.PermitTransferFrom({
+                        permitted: ISignatureTransfer.TokenPermissions({
                             token: data.token,
                             amount: data.amount
                         }),
@@ -72,7 +72,7 @@ contract CustomRouter {
                         deadline: data.deadline
                     }),
                     // The transfer recipient and amount.
-                    IPermit2.SignatureTransferDetails({
+                    ISignatureTransfer.SignatureTransferDetails({
                         to: address(this),
                         requestedAmount: data.amount
                     }),
