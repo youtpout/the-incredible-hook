@@ -61,9 +61,14 @@ contract SponsoredTest is Test, Deployers, DeployPermit2 {
         );
 
         // Create the pool
-        key = PoolKey(currency0, currency1, 11000, 60, IHooks(address(hook)));
-        poolId = key.toId();
-        manager.initialize(key, SQRT_RATIO_1_1, ZERO_BYTES);
+        (key,) = initPoolAndAddLiquidity(
+            currency0,
+            currency1,
+            IHooks(address(hook)),
+            SwapFeeLibrary.DYNAMIC_FEE_FLAG,
+            SQRT_RATIO_1_1,
+            ZERO_BYTES
+        );
 
         // Provide liquidity to the pool
         modifyLiquidityRouter.modifyLiquidity(
