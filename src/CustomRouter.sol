@@ -19,8 +19,7 @@ contract CustomRouter {
         bytes signature;
     }
 
-    PoolSwapTest swapRouter;
-    address public immutable poolKey;
+    PoolSwapTest swapRouter = PoolSwapTest(address(0x01));
     IPermit2 public immutable PERMIT2;
 
     // slippage tolerance to allow for unlimited price impact
@@ -28,8 +27,9 @@ contract CustomRouter {
     uint160 public constant MAX_PRICE_LIMIT = TickMath.MAX_SQRT_RATIO - 1;
     bytes constant ZERO_BYTES = new bytes(0);
 
-    constructor(address manager, address permit2) {
-        swapRouter = new PoolSwapTest(IPoolManager(address(manager)));
+    constructor(address token0, address token1, address permit2) {
+        TestERC20(token0).approve(address(swapRouter), type(uint256).max);
+        TestERC20(token1).approve(address(swapRouter), type(uint256).max);
         PERMIT2 = IPermit2(permit2);
     }
 
@@ -40,7 +40,6 @@ contract CustomRouter {
     /// @param permitInfos permit2 signature sponsored swap
     function swap(
         PoolKey memory key,
-        address token,
         int256 amountSpecified,
         bool zeroForOne,
         bytes calldata permitInfos
@@ -106,12 +105,6 @@ contract CustomRouter {
             sqrtPriceLimitX96: zeroForOne ? MIN_PRICE_LIMIT : MAX_PRICE_LIMIT // unlimited impact
         });
 
-        TestERC20(token).transferFrom(
-            msg.sender,
-            address(this),
-            uint256(amountSpecified)
-        );
-        TestERC20(token).approve(address(swapRouter), uint256(amountSpecified));
         swapRouter.swap(key, params, testSettings, hookData);
     }
 }

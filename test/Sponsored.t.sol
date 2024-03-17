@@ -76,7 +76,7 @@ contract SponsoredTest is Test, Deployers, DeployPermit2 {
         );
 
         // add router and whitelist it
-        router = new CustomRouter(address(manager), permit2);
+        router = new CustomRouter(Currency.unwrap(currency0),Currency.unwrap(currency1), permit2);
         hook.setWhitelist(address(router));
 
          MockERC20(Currency.unwrap(currency0)).approve(address(router), type(uint256).max);
@@ -86,8 +86,8 @@ contract SponsoredTest is Test, Deployers, DeployPermit2 {
     function testSwap() public {
         // Perform a test swap //
         bool zeroForOne = true;
-        int256 amountSpecified = 100; 
-        router.swap(key, Currency.unwrap(currency0),amountSpecified,zeroForOne,ZERO_BYTES);
+        int256 amountSpecified = 200; 
+        router.swap(key,amountSpecified,zeroForOne,ZERO_BYTES);
     }
 
     function testLiquidityHooks() public {
