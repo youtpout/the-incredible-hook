@@ -8,6 +8,7 @@ import {IPoolManager} from "v4-core/src/interfaces/IPoolManager.sol";
 import {PoolKey} from "v4-core/src/types/PoolKey.sol";
 import {PoolId, PoolIdLibrary} from "v4-core/src/types/PoolId.sol";
 import {BalanceDelta} from "v4-core/src/types/BalanceDelta.sol";
+import "forge-std/Test.sol";
 
 contract SponsoredHook is BaseHook {
     using PoolIdLibrary for PoolKey;
@@ -47,7 +48,7 @@ contract SponsoredHook is BaseHook {
     function beforeSwap(
         address caller,
         PoolKey calldata key,
-        IPoolManager.SwapParams calldata,
+        IPoolManager.SwapParams calldata data,
         bytes calldata hookdata
     ) external override returns (bytes4) {
         if (hookdata.length > 0 && authorizedRouter[caller]) {
@@ -55,19 +56,23 @@ contract SponsoredHook is BaseHook {
             uint24 nbSwap = abi.decode(hookdata, (uint24));
             // first swap get bonus of 0.1% and after 0.05% by swap
             if (nbSwap > 0) {
-                uint24 fee = baseFee - 1000 - (nbSwap * 500);
+                uint24 fee = baseFee - 500 - (nbSwap * 500);
                 if (fee < 5000) {
                     // min fees of 0.5 %
                     fee = 5000;
                 }
                 poolManager.updateDynamicSwapFee(key, fee);
+                console2.log("fees", fee);
             } else {
-               poolManager.updateDynamicSwapFee(key, baseFee);
+                poolManager.updateDynamicSwapFee(key, baseFee);
+                console2.log("fees", baseFee);
             }
         } else {
             // apply base fee if they are 0 sponsored swap
             poolManager.updateDynamicSwapFee(key, baseFee);
+            console2.log("fees", baseFee);
         }
+
         return BaseHook.beforeSwap.selector;
     }
 }
